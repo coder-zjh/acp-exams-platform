@@ -30,10 +30,10 @@ cp .env.example .env
 set -a
 source .env
 set +a
-python3 -m uvicorn server:app --host 127.0.0.1 --port 8766
+python3 -m uvicorn server:app --host 127.0.0.1 --port 8765
 ```
 
-打开 `http://127.0.0.1:8766`。题目完成、错题、收藏和斩题状态会保存到 MySQL 的 `acp_user_question_status` 表。
+打开 `http://127.0.0.1:8765`。题目完成、错题、收藏和斩题状态会保存到 MySQL 的 `acp_user_question_status` 表。
 
 ## 依赖
 
