@@ -11,22 +11,10 @@ cd acp-exams-platform
 
 ## MySQL 初始化
 
-### 新机器
-
 ```bash
 mysql -u root -p < schema.sql
 mysql -u root -p acp_exams_platform < mysql-seed.sql
 ```
-
-### 已有旧库
-
-如果已有 `aca_acp_exams` 数据库，先迁移数据库和表名：
-
-```bash
-mysql -u root -p < migrate_rename.sql
-```
-
-迁移后使用数据库 `acp_exams_platform`，表名为 `acp_users`、`acp_questions`、`acp_user_question_status`、`acp_study_activity`。
 
 复制配置模板并填写 MySQL 密码：
 
