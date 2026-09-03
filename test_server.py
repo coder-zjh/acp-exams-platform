@@ -42,6 +42,79 @@ def test_progress_endpoints_when_storage_succeeds(monkeypatch) -> None:
     assert saved[0].progress["0"].favorite == [0]
 
 
+def test_progress_export_endpoint_when_storage_succeeds(monkeypatch) -> None:
+    expected = {
+        "0": {"done": [0], "wrong": [], "favorite": [], "excluded": [], "results": {"0": True}, "answers": {"0": "A"}},
+        "1": {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}, "answers": {}},
+    }
+    monkeypatch.setattr(server, "load_progress", lambda: expected)
+    client = TestClient(server.app)
+
+    response = client.get("/api/progress/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert "attachment" in response.headers["content-disposition"]
+    body = response.json()
+    assert body["schema_version"] == 1
+    assert body["progress"] == expected
+    assert body["exported_at"]
+
+
+def test_progress_import_endpoint_when_payload_is_valid(monkeypatch) -> None:
+    saved: list[ProgressPayload] = []
+    expected = {
+        "0": {"done": [2], "wrong": [], "favorite": [], "excluded": [], "results": {"2": True}, "answers": {"2": "B"}},
+        "1": {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}, "answers": {}},
+    }
+    monkeypatch.setattr(server, "quiz_catalog", lambda: [
+        {"source_key": "pdf-single", "section": "single", "question_count": 896},
+        {"source_key": "pdf-multi", "section": "multi", "question_count": 370},
+    ])
+    monkeypatch.setattr(server, "replace_progress", lambda payload: saved.append(payload))
+    monkeypatch.setattr(server, "load_progress", lambda: expected)
+    client = TestClient(server.app)
+
+    response = client.post(
+        "/api/progress/import",
+        json={
+            "schema_version": 1,
+            "exported_at": "2026-09-03T00:00:00+00:00",
+            "progress": {
+                "0": {"done": [2], "answers": {"2": "B"}},
+                "1": {},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert saved[0].progress["0"].done == [2]
+    assert response.json() == expected
+
+
+def test_progress_import_endpoint_rejects_out_of_range_question(monkeypatch) -> None:
+    monkeypatch.setattr(server, "quiz_catalog", lambda: [
+        {"source_key": "pdf-single", "section": "single", "question_count": 2},
+        {"source_key": "pdf-multi", "section": "multi", "question_count": 1},
+    ])
+    monkeypatch.setattr(server, "replace_progress", lambda payload: None)
+    client = TestClient(server.app)
+
+    response = client.post(
+        "/api/progress/import",
+        json={
+            "schema_version": 1,
+            "exported_at": "2026-09-03T00:00:00+00:00",
+            "progress": {
+                "0": {"done": [2]},
+                "1": {},
+            },
+        },
+    )
+
+    assert response.status_code == 400
+
+
 def test_quiz_endpoints_when_questions_are_served_from_database(monkeypatch) -> None:
     monkeypatch.setattr(
         server,

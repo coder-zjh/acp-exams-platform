@@ -4,12 +4,13 @@ import os
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final, Literal
 
 import pymysql
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 from pymysql.cursors import DictCursor
 from typing_extensions import TypedDict
@@ -35,6 +36,14 @@ class SetProgress(BaseModel):
 class ProgressPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    progress: dict[str, SetProgress]
+
+
+class ProgressExportPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: Literal[1]
+    exported_at: datetime
     progress: dict[str, SetProgress]
 
 
@@ -183,6 +192,26 @@ def replace_progress(payload: ProgressPayload) -> None:
         conn.commit()
 
 
+def validate_import_progress(payload: ProgressExportPayload) -> None:
+    expected_keys = {str(index) for index in range(len(SOURCE_KEYS))}
+    if set(payload.progress) != expected_keys:
+        raise HTTPException(status_code=400, detail="进度文件缺少有效题库数据")
+
+    catalog = {str(index): int(entry["question_count"]) for index, entry in enumerate(quiz_catalog())}
+    for set_index, set_progress in payload.progress.items():
+        question_count = catalog.get(set_index)
+        if question_count is None:
+            raise HTTPException(status_code=400, detail="进度文件包含未知题库")
+        for field_name in ("done", "wrong", "favorite", "excluded"):
+            values = getattr(set_progress, field_name)
+            if len(values) != len(set(values)) or any(value < 0 or value >= question_count for value in values):
+                raise HTTPException(status_code=400, detail="进度文件包含无效题号")
+        for mapping in (set_progress.results, set_progress.answers):
+            for key in mapping:
+                if not key.isdecimal() or str(int(key)) != key or int(key) < 0 or int(key) >= question_count:
+                    raise HTTPException(status_code=400, detail="进度文件包含无效题号")
+
+
 def quiz_catalog() -> list[dict[str, str | int]]:
     sql = """
         SELECT source_key, section, COUNT(*) AS question_count
@@ -265,6 +294,31 @@ def put_progress(payload: ProgressPayload) -> None:
         replace_progress(payload)
     except pymysql.MySQLError as error:
         raise HTTPException(status_code=500, detail="无法保存 MySQL 练习进度") from error
+
+
+@app.get("/api/progress/export")
+def export_progress() -> Response:
+    payload = ProgressExportPayload(
+        schema_version=1,
+        exported_at=datetime.now(timezone.utc),
+        progress=load_progress(),
+    )
+    content = json.dumps(payload.model_dump(mode="json"), ensure_ascii=False, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="acp-progress.json"'},
+    )
+
+
+@app.post("/api/progress/import")
+def import_progress(payload: ProgressExportPayload) -> dict[str, BrowserSetProgress]:
+    validate_import_progress(payload)
+    try:
+        replace_progress(ProgressPayload(progress=payload.progress))
+    except pymysql.MySQLError as error:
+        raise HTTPException(status_code=500, detail="无法导入 MySQL 练习进度") from error
+    return load_progress()
 
 
 @app.get("/api/quiz/catalog", response_model=QuizCatalogResponse)
