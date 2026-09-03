@@ -40,3 +40,11 @@ python3 -m uvicorn server:app --host 127.0.0.1 --port 8765
 ```bash
 python3 -m pip install fastapi uvicorn pymysql pydantic typing-extensions
 ```
+
+## 支持项目
+
+如果这个项目对你有帮助，可以通过以下方式支持维护：
+
+| 微信支付 | 支付宝 |
+| --- | --- |
+| ![微信收款码](docs/payment/wechat.jpg) | ![支付宝收款码](docs/payment/alipay.jpg) |

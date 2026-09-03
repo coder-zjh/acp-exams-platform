@@ -26,6 +26,7 @@ class SetProgress(BaseModel):
     favorite: list[int] = Field(default_factory=list)
     excluded: list[int] = Field(default_factory=list)
     results: dict[str, bool] = Field(default_factory=dict)
+    answers: dict[str, str] = Field(default_factory=dict)
 
 
 class ProgressPayload(BaseModel):
@@ -40,6 +41,7 @@ class BrowserSetProgress(TypedDict):
     favorite: list[int]
     excluded: list[int]
     results: dict[str, bool]
+    answers: dict[str, str]
 
 
 def db_config() -> dict[str, str | int]:
@@ -61,7 +63,7 @@ def connection() -> Iterator[pymysql.connections.Connection]:
 
 def empty_progress() -> dict[str, BrowserSetProgress]:
     return {
-        str(index): {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}}
+        str(index): {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}, "answers": {}}
         for index in range(len(SOURCE_KEYS))
     }
 
@@ -70,7 +72,7 @@ def load_progress() -> dict[str, BrowserSetProgress]:
     progress = empty_progress()
     sql = """
         SELECT q.source_key, q.question_no, s.is_completed, s.is_wrong,
-               s.is_favorite, s.is_chopped
+               s.is_favorite, s.is_chopped, s.last_answer
         FROM acp_user_question_status AS s
         INNER JOIN acp_questions AS q ON q.id = s.question_id
         WHERE s.user_id = %s
@@ -92,14 +94,17 @@ def load_progress() -> dict[str, BrowserSetProgress]:
             set_progress["favorite"].append(question_index)
         if row["is_chopped"]:
             set_progress["excluded"].append(question_index)
+        if row["last_answer"]:
+            set_progress["answers"][str(question_index)] = str(row["last_answer"])
     return progress
 
 
-def status_rows(payload: ProgressPayload) -> list[tuple[int, str, int, bool, bool, bool, bool]]:
-    rows: list[tuple[int, str, int, bool, bool, bool, bool]] = []
+def status_rows(payload: ProgressPayload) -> list[tuple[int, str, int, bool, bool, bool, bool, str | None]]:
+    rows: list[tuple[int, str, int, bool, bool, bool, bool, str | None]] = []
     for source_index, source_key in enumerate(SOURCE_KEYS):
         set_progress = payload.progress.get(str(source_index), SetProgress())
         indexes = set(set_progress.done) | set(set_progress.wrong) | set(set_progress.favorite) | set(set_progress.excluded)
+        indexes |= {int(index) for index in set_progress.answers}
         for index in sorted(indexes):
             rows.append(
                 (
@@ -110,6 +115,7 @@ def status_rows(payload: ProgressPayload) -> list[tuple[int, str, int, bool, boo
                     index in set_progress.wrong,
                     index in set_progress.favorite,
                     index in set_progress.excluded,
+                    set_progress.answers.get(str(index)),
                 )
             )
     return rows
@@ -118,15 +124,15 @@ def status_rows(payload: ProgressPayload) -> list[tuple[int, str, int, bool, boo
 def replace_progress(payload: ProgressPayload) -> None:
     insert = """
         INSERT INTO acp_user_question_status
-          (user_id, question_id, is_completed, is_wrong, is_favorite, is_chopped)
-        SELECT %s, id, %s, %s, %s, %s
+          (user_id, question_id, is_completed, is_wrong, is_favorite, is_chopped, last_answer)
+        SELECT %s, id, %s, %s, %s, %s, %s
         FROM acp_questions
         WHERE source_key = %s AND question_no = %s
     """
     with connection() as conn, conn.cursor() as cursor:
         cursor.execute("DELETE FROM acp_user_question_status WHERE user_id = %s", (DEFAULT_USER_ID,))
-        for user_id, source_key, question_no, completed, wrong, favorite, chopped in status_rows(payload):
-            cursor.execute(insert, (user_id, completed, wrong, favorite, chopped, source_key, question_no))
+        for user_id, source_key, question_no, completed, wrong, favorite, chopped, answer in status_rows(payload):
+            cursor.execute(insert, (user_id, completed, wrong, favorite, chopped, answer, source_key, question_no))
         conn.commit()
 
 

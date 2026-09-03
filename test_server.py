@@ -7,24 +7,24 @@ from server import ProgressPayload, SetProgress, status_rows
 def test_status_rows_when_progress_has_completed_wrong_favorite_and_chopped_questions() -> None:
     payload = ProgressPayload(
         progress={
-            "0": SetProgress(done=[0], wrong=[1], favorite=[2], excluded=[3]),
-            "1": SetProgress(done=[4], favorite=[4]),
+            "0": SetProgress(done=[0], wrong=[1], favorite=[2], excluded=[3], answers={"0": "A"}),
+            "1": SetProgress(done=[4], favorite=[4], answers={"4": "AB"}),
         }
     )
 
     assert status_rows(payload) == [
-        (1, "pdf-single", 1, True, False, False, False),
-        (1, "pdf-single", 2, False, True, False, False),
-        (1, "pdf-single", 3, False, False, True, False),
-        (1, "pdf-single", 4, False, False, False, True),
-        (1, "pdf-multi", 5, True, False, True, False),
+        (1, "pdf-single", 1, True, False, False, False, "A"),
+        (1, "pdf-single", 2, False, True, False, False, None),
+        (1, "pdf-single", 3, False, False, True, False, None),
+        (1, "pdf-single", 4, False, False, False, True, None),
+        (1, "pdf-multi", 5, True, False, True, False, "AB"),
     ]
 
 
 def test_progress_endpoints_when_storage_succeeds(monkeypatch) -> None:
     expected = {
-        "0": {"done": [0], "wrong": [], "favorite": [], "excluded": [], "results": {"0": True}},
-        "1": {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}},
+        "0": {"done": [0], "wrong": [], "favorite": [], "excluded": [], "results": {"0": True}, "answers": {"0": "A"}},
+        "1": {"done": [], "wrong": [], "favorite": [], "excluded": [], "results": {}, "answers": {}},
     }
     saved: list[ProgressPayload] = []
 
