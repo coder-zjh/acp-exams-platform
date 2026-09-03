@@ -1,4 +1,4 @@
-import { optionState } from "./app-logic.js";
+import { optionState, shouldKeepSubmittedQuestion } from "./app-logic.js";
 
 const $ = (id) => document.getElementById(id);
 const titles = { "pdf-single": "阿里云大模型ACP认证题库（单选题）", "pdf-multi": "阿里云大模型ACP认证题库（多选题）" };
@@ -10,7 +10,7 @@ const allQuestions = (index = setIndex) => Array.from({ length: sets[index].ques
 const active = (index = setIndex) => allQuestions(index).filter((number) => !state(index).excluded.includes(number));
 const filterKinds = () => ["wrong", "favorite", "chopped", "unfinished"].filter((kind) => filters[kind]);
 const matchesFilters = (number, current) => { const kinds = filterKinds(); if (filters.all || !kinds.length) return true; return kinds.some((kind) => kind === "wrong" ? current.wrong.includes(number) && !current.excluded.includes(number) : kind === "favorite" ? current.favorite.includes(number) && !current.excluded.includes(number) : kind === "chopped" ? current.excluded.includes(number) : !current.done.includes(number) && !current.excluded.includes(number)); };
-const filteredQuestions = (index = setIndex) => allQuestions(index).filter((number) => matchesFilters(number, state(index)));
+const filteredQuestions = (index = setIndex) => allQuestions(index).filter((number) => matchesFilters(number, state(index)) || shouldKeepSubmittedQuestion(number, qIndex, index, setIndex, filters, state(index).done));
 const questionsForMode = () => { const current = state(); if (mode === "chopped") return allQuestions().filter((number) => current.excluded.includes(number)); return filteredQuestions(); };
 const save = () => request("/api/progress", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ progress }) });
 function renderSets() { $("sets").innerHTML = sets.map((set, index) => { const count = set.section === "multi" ? set.question_count : set.question_count - state(index).excluded.length; return '<button class="set-btn ' + (index === setIndex ? "active" : "") + '" data-set="' + index + '">' + titles[set.source_key] + '<small>' + count + '</small></button>'; }).join(""); document.querySelectorAll("[data-set]").forEach((button) => button.onclick = () => { setIndex = Number(button.dataset.set); mode = "all"; qIndex = active().find((number) => !state().done.includes(number)) ?? active()[0] ?? 0; loadQuestion(); }); }
