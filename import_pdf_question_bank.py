@@ -104,5 +104,5 @@ for item in unique:
         'ON DUPLICATE KEY UPDATE body=VALUES(body), options_json=VALUES(options_json), answer=VALUES(answer);'
     )
 seed.extend(['COMMIT;', ''])
-(ROOT / 'mysql-seed.sql').write_text('\n'.join(seed), encoding='utf-8')
+(ROOT / 'database' / 'mysql-seed.sql').write_text('\n'.join(seed), encoding='utf-8')
 print(json.dumps({'source_questions': len(questions), 'unique_questions': len(unique), 'duplicates_removed': len(questions) - len(unique), 'single': len(single), 'multi': len(multi)}, ensure_ascii=False))

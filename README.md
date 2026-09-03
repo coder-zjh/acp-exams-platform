@@ -12,8 +12,8 @@ cd acp-exams-platform
 ## MySQL 初始化
 
 ```bash
-mysql -u root -p < schema.sql
-mysql -u root -p acp_exams_platform < mysql-seed.sql
+mysql -u root -p < database/schema.sql
+mysql -u root -p acp_exams_platform < database/mysql-seed.sql
 ```
 
 复制配置模板并填写 MySQL 密码：
