@@ -40,3 +40,63 @@ def test_progress_endpoints_when_storage_succeeds(monkeypatch) -> None:
     response = client.put("/api/progress", json=update)
     assert response.status_code == 204
     assert saved[0].progress["0"].favorite == [0]
+
+
+def test_quiz_endpoints_when_questions_are_served_from_database(monkeypatch) -> None:
+    monkeypatch.setattr(
+        server,
+        "quiz_catalog",
+        lambda: [
+            {"source_key": "pdf-single", "section": "single", "question_count": 896},
+            {"source_key": "pdf-multi", "section": "multi", "question_count": 370},
+        ],
+    )
+    monkeypatch.setattr(
+        server,
+        "read_quiz_question",
+        lambda source_key, question_no: {
+            "source_key": source_key,
+            "question_no": question_no,
+            "section": "single",
+            "body": "题干",
+            "options": [{"key": "A", "text": "选项 A"}],
+        },
+    )
+    monkeypatch.setattr(
+        server,
+        "grade_quiz_question",
+        lambda source_key, question_no, answer: {
+            "is_correct": answer == "A",
+            "correct_answer": "A",
+        },
+    )
+    client = TestClient(server.app)
+
+    catalog = client.get("/api/quiz/catalog")
+    assert catalog.status_code == 200
+    assert catalog.json() == {
+        "sets": [
+            {"source_key": "pdf-single", "section": "single", "question_count": 896},
+            {"source_key": "pdf-multi", "section": "multi", "question_count": 370},
+        ]
+    }
+
+    question = client.get("/api/quiz/questions/pdf-single/1")
+    assert question.status_code == 200
+    assert question.json() == {
+        "source_key": "pdf-single",
+        "question_no": 1,
+        "section": "single",
+        "body": "题干",
+        "options": [{"key": "A", "text": "选项 A"}],
+    }
+    assert "correct_answer" not in question.json()
+
+    result = client.post(
+        "/api/quiz/questions/pdf-single/1/submit",
+        json={"answer": "A"},
+    )
+    assert result.status_code == 200
+    assert result.json() == {"is_correct": True, "correct_answer": "A"}
+    assert client.get("/app-logic.js").status_code == 200
+    assert client.get("/quiz-data.js").status_code == 404

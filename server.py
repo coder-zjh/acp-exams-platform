@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import os
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 import pymysql
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pymysql.cursors import DictCursor
 from typing_extensions import TypedDict
@@ -16,6 +17,8 @@ from typing_extensions import TypedDict
 ROOT: Final = Path(__file__).parent
 DEFAULT_USER_ID: Final = 1
 SOURCE_KEYS: Final = ("pdf-single", "pdf-multi")
+SourceKey = Literal["pdf-single", "pdf-multi"]
+QuestionSection = Literal["single", "multi"]
 
 
 class SetProgress(BaseModel):
@@ -33,6 +36,50 @@ class ProgressPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     progress: dict[str, SetProgress]
+
+
+class QuizCatalogEntry(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    source_key: SourceKey
+    section: QuestionSection
+    question_count: int
+
+
+class QuizCatalogResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    sets: list[QuizCatalogEntry]
+
+
+class QuizOption(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    key: str
+    text: str
+
+
+class QuizQuestionResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    source_key: SourceKey
+    question_no: int
+    section: QuestionSection
+    body: str
+    options: list[QuizOption]
+
+
+class QuizSubmission(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    answer: str
+
+
+class QuizGradeResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    is_correct: bool
+    correct_answer: str
 
 
 class BrowserSetProgress(TypedDict):
@@ -136,7 +183,75 @@ def replace_progress(payload: ProgressPayload) -> None:
         conn.commit()
 
 
+def quiz_catalog() -> list[dict[str, str | int]]:
+    sql = """
+        SELECT source_key, section, COUNT(*) AS question_count
+        FROM acp_questions
+        GROUP BY source_key, section
+        ORDER BY FIELD(source_key, 'pdf-single', 'pdf-multi')
+    """
+    with connection() as conn, conn.cursor() as cursor:
+        cursor.execute(sql)
+        return cursor.fetchall()
+
+
+def read_quiz_question(source_key: SourceKey, question_no: int) -> dict[str, object]:
+    sql = """
+        SELECT source_key, question_no, section, body, options_json
+        FROM acp_questions
+        WHERE source_key = %s AND question_no = %s
+    """
+    with connection() as conn, conn.cursor() as cursor:
+        cursor.execute(sql, (source_key, question_no))
+        row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="题目不存在")
+    options = json.loads(str(row["options_json"]))
+    return {
+        "source_key": row["source_key"],
+        "question_no": row["question_no"],
+        "section": row["section"],
+        "body": row["body"],
+        "options": [{"key": item["key"], "text": item["text"]} for item in options],
+    }
+
+
+def grade_quiz_question(
+    source_key: SourceKey, question_no: int, answer: str
+) -> dict[str, str | bool]:
+    sql = """
+        SELECT answer
+        FROM acp_questions
+        WHERE source_key = %s AND question_no = %s
+    """
+    with connection() as conn, conn.cursor() as cursor:
+        cursor.execute(sql, (source_key, question_no))
+        row = cursor.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="题目不存在")
+    correct_answer = str(row["answer"])
+    return {
+        "is_correct": "".join(sorted(answer.upper())) == "".join(sorted(correct_answer)),
+        "correct_answer": correct_answer,
+    }
+
+
 app = FastAPI(title="ACP Exams Platform Progress API")
+
+
+@app.get("/", response_class=FileResponse)
+def get_index() -> FileResponse:
+    return FileResponse(ROOT / "index.html")
+
+
+@app.get("/app.js", response_class=FileResponse)
+def get_app_script() -> FileResponse:
+    return FileResponse(ROOT / "app.js", media_type="application/javascript")
+
+
+@app.get("/app-logic.js", response_class=FileResponse)
+def get_app_logic_script() -> FileResponse:
+    return FileResponse(ROOT / "app-logic.js", media_type="application/javascript")
 
 
 @app.get("/api/progress")
@@ -152,4 +267,28 @@ def put_progress(payload: ProgressPayload) -> None:
         raise HTTPException(status_code=500, detail="无法保存 MySQL 练习进度") from error
 
 
-app.mount("/", StaticFiles(directory=ROOT, html=True), name="web")
+@app.get("/api/quiz/catalog", response_model=QuizCatalogResponse)
+def get_quiz_catalog() -> QuizCatalogResponse:
+    return QuizCatalogResponse(sets=quiz_catalog())
+
+
+@app.get(
+    "/api/quiz/questions/{source_key}/{question_no}",
+    response_model=QuizQuestionResponse,
+)
+def get_quiz_question(
+    source_key: SourceKey, question_no: int
+) -> QuizQuestionResponse:
+    return QuizQuestionResponse(**read_quiz_question(source_key, question_no))
+
+
+@app.post(
+    "/api/quiz/questions/{source_key}/{question_no}/submit",
+    response_model=QuizGradeResponse,
+)
+def submit_quiz_question(
+    source_key: SourceKey, question_no: int, submission: QuizSubmission
+) -> QuizGradeResponse:
+    return QuizGradeResponse(
+        **grade_quiz_question(source_key, question_no, submission.answer)
+    )
