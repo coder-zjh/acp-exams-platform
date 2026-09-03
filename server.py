@@ -48,7 +48,7 @@ def db_config() -> dict[str, str | int]:
         "port": int(os.environ.get("ACA_DB_PORT", "3306")),
         "user": os.environ.get("ACA_DB_USER", "root"),
         "password": os.environ.get("ACA_DB_PASSWORD", ""),
-        "database": os.environ.get("ACA_DB_NAME", "aca_acp_exams"),
+        "database": os.environ.get("ACA_DB_NAME", "acp_exams_platform"),
         "charset": "utf8mb4",
     }
 
@@ -71,8 +71,8 @@ def load_progress() -> dict[str, BrowserSetProgress]:
     sql = """
         SELECT q.source_key, q.question_no, s.is_completed, s.is_wrong,
                s.is_favorite, s.is_chopped
-        FROM user_question_status AS s
-        INNER JOIN questions AS q ON q.id = s.question_id
+        FROM acp_user_question_status AS s
+        INNER JOIN acp_questions AS q ON q.id = s.question_id
         WHERE s.user_id = %s
     """
     with connection() as conn, conn.cursor() as cursor:
@@ -117,20 +117,20 @@ def status_rows(payload: ProgressPayload) -> list[tuple[int, str, int, bool, boo
 
 def replace_progress(payload: ProgressPayload) -> None:
     insert = """
-        INSERT INTO user_question_status
+        INSERT INTO acp_user_question_status
           (user_id, question_id, is_completed, is_wrong, is_favorite, is_chopped)
         SELECT %s, id, %s, %s, %s, %s
-        FROM questions
+        FROM acp_questions
         WHERE source_key = %s AND question_no = %s
     """
     with connection() as conn, conn.cursor() as cursor:
-        cursor.execute("DELETE FROM user_question_status WHERE user_id = %s", (DEFAULT_USER_ID,))
+        cursor.execute("DELETE FROM acp_user_question_status WHERE user_id = %s", (DEFAULT_USER_ID,))
         for user_id, source_key, question_no, completed, wrong, favorite, chopped in status_rows(payload):
             cursor.execute(insert, (user_id, completed, wrong, favorite, chopped, source_key, question_no))
         conn.commit()
 
 
-app = FastAPI(title="ACA-ACP Exam Progress API")
+app = FastAPI(title="ACP Exams Platform Progress API")
 
 
 @app.get("/api/progress")

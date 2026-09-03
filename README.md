@@ -1,10 +1,10 @@
-# ACA-ACP 练习台
+# ACP Exams Platform
 
 ## MySQL 初始化
 
 ```bash
 mysql -u root -p < schema.sql
-mysql -u root -p aca_acp_exams < mysql-seed.sql
+mysql -u root -p acp_exams_platform < mysql-seed.sql
 ```
 
 复制配置模板并填写 MySQL 密码：
@@ -22,4 +22,4 @@ set +a
 python3 -m uvicorn server:app --host 127.0.0.1 --port 8766
 ```
 
-打开 `http://127.0.0.1:8766`。题目完成、错题、收藏和斩题状态会保存到 MySQL 的 `user_question_status` 表。
+打开 `http://127.0.0.1:8766`。题目完成、错题、收藏和斩题状态会保存到 MySQL 的 `acp_user_question_status` 表。

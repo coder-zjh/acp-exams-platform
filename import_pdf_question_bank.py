@@ -94,11 +94,11 @@ def sql(value: str) -> str:
     return "'" + value.replace('\\', '\\\\').replace("'", "''") + "'"
 
 
-seed = ['USE aca_acp_exams;', 'START TRANSACTION;']
+seed = ['USE acp_exams_platform;', 'START TRANSACTION;']
 for item in unique:
     source_key = 'pdf-single' if item['section'] == 'single' else 'pdf-multi'
     seed.append(
-        'INSERT INTO questions (source_key, question_no, section, body, options_json, answer) VALUES '
+        'INSERT INTO acp_questions (source_key, question_no, section, body, options_json, answer) VALUES '
         f'({sql(source_key)}, {item["number"]}, {sql(item["section"])}, {sql(item["text"])}, '
         f'{sql(json.dumps(item["options"], ensure_ascii=False, separators=(",", ":")))}, {sql(item["answer"])}) '
         'ON DUPLICATE KEY UPDATE body=VALUES(body), options_json=VALUES(options_json), answer=VALUES(answer);'
