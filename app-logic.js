@@ -4,6 +4,18 @@ export function optionState(key, selected, correctAnswer, submitted, multi = fal
   return selected.includes(key) ? "wrong" : "";
 }
 
+export function questionSetCount(set) {
+  return set.question_count;
+}
+
+export function completionStats(setProgress) {
+  const done = new Set(setProgress.done);
+  const excluded = new Set(setProgress.excluded);
+  const completed = new Set([...done, ...excluded]).size;
+  const correct = [...done].filter((number) => setProgress.results[String(number)] === true).length;
+  return { done: done.size, completed, correct };
+}
+
 export function shouldKeepSubmittedQuestion(number, currentNumber, setIndex, currentSetIndex, filters, done) {
   return setIndex === currentSetIndex && number === currentNumber && filters.unfinished && !filters.wrong && !filters.favorite && !filters.chopped && !filters.all && done.includes(number);
 }

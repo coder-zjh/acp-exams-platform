@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { optionState, shouldKeepSubmittedQuestion } from "./app-logic.js";
+import { completionStats, optionState, questionSetCount, shouldKeepSubmittedQuestion } from "./app-logic.js";
 
 test("a correct option in a multi-select answer is green instead of red", () => {
   assert.equal(optionState("A", ["A", "C"], "AC", true, true), "correct");
@@ -13,6 +13,18 @@ test("a missed correct option in a submitted multi-select answer is marked misse
 
 test("an unselected correct option in a single-select answer stays green", () => {
   assert.equal(optionState("B", ["A"], "B", true), "correct");
+});
+
+test("single-select and multi-select sets both use their catalog question totals", () => {
+  assert.equal(questionSetCount({ section: "single", question_count: 896 }), 896);
+  assert.equal(questionSetCount({ section: "multi", question_count: 370 }), 370);
+});
+
+test("completion stats count unique completed questions and score answered questions", () => {
+  assert.deepEqual(
+    completionStats({ done: [1, 1, 2], excluded: [2, 3], results: { "1": true, "2": false } }),
+    { done: 2, completed: 3, correct: 1 },
+  );
 });
 
 test("the just-submitted question remains visible in the unfinished filter until navigation", () => {
