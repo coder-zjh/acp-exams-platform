@@ -22,3 +22,10 @@ SET
   options_json = REPLACE(options_json, '端又', '端口')
 WHERE body LIKE '%端又%'
    OR options_json LIKE '%端又%';
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '又头', '口头'),
+  options_json = REPLACE(options_json, '又头', '口头')
+WHERE body LIKE '%又头%'
+   OR options_json LIKE '%又头%';
