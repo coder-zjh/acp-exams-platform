@@ -12,10 +12,20 @@ export function completionStats(setProgress) {
   const done = new Set(setProgress.done);
   const excluded = new Set(setProgress.excluded);
   const completed = new Set([...done, ...excluded]).size;
-  const correct = [...done].filter((number) => setProgress.results[String(number)] === true).length;
+  const correct = [...done].filter((number) => setProgress.results[String(number)] === true).length
+    + [...excluded].filter((number) => !done.has(number)).length;
   return { done: done.size, completed, correct };
 }
 
-export function shouldKeepSubmittedQuestion(number, currentNumber, setIndex, currentSetIndex, filters, done) {
-  return setIndex === currentSetIndex && number === currentNumber && filters.unfinished && !filters.wrong && !filters.favorite && !filters.chopped && !filters.all && done.includes(number);
+export function isCurrentLoad(loadId, latestLoadId) {
+  return loadId === latestLoadId;
+}
+
+export function nextQuestionIndex(numbers, currentNumber) {
+  const position = numbers.indexOf(currentNumber);
+  return position >= 0 && position < numbers.length - 1 ? numbers[position + 1] : null;
+}
+
+export function shouldKeepSubmittedQuestion(number, currentNumber, setIndex, currentSetIndex, filters, done, excluded = []) {
+  return setIndex === currentSetIndex && number === currentNumber && filters.unfinished && !filters.wrong && !filters.favorite && !filters.chopped && !filters.all && done.includes(number) && !excluded.includes(number);
 }

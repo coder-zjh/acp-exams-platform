@@ -15,3 +15,10 @@ WHERE body LIKE '%又 语%'
    OR body LIKE '%又语%'
    OR options_json LIKE '%又 语%'
    OR options_json LIKE '%又语%';
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '端又', '端口'),
+  options_json = REPLACE(options_json, '端又', '端口')
+WHERE body LIKE '%端又%'
+   OR options_json LIKE '%端又%';

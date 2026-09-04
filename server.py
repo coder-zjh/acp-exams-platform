@@ -270,17 +270,17 @@ app = FastAPI(title="ACP Exams Platform Progress API")
 
 @app.get("/", response_class=FileResponse)
 def get_index() -> FileResponse:
-    return FileResponse(ROOT / "index.html")
+    return FileResponse(ROOT / "index.html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/app.js", response_class=FileResponse)
 def get_app_script() -> FileResponse:
-    return FileResponse(ROOT / "app.js", media_type="application/javascript")
+    return FileResponse(ROOT / "app.js", media_type="application/javascript", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/app-logic.js", response_class=FileResponse)
 def get_app_logic_script() -> FileResponse:
-    return FileResponse(ROOT / "app-logic.js", media_type="application/javascript")
+    return FileResponse(ROOT / "app-logic.js", media_type="application/javascript", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/progress")
