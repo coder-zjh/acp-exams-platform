@@ -39,7 +39,9 @@ The app uses a 4px-derived rhythm, a 280px fixed sidebar on desktop, and a singl
 
 - Structure: question metadata, prompt, option buttons, answer note, controls.
 - States: selected, correct, wrong, missed (multi-select), favorite, chopped.
-- Accessibility: options and actions are keyboard-reachable buttons with visible focus.
+- Keyboard flow: `1-9` select the first nine options, `0` selects the tenth, and `Enter` submits before becoming next-question navigation.
+- Controls: shortcut labels use compact semantic `kbd` text after the primary action label; the submit/next control keeps a stable width when its state changes.
+- Accessibility: options and actions are keyboard-reachable buttons with visible focus; empty-answer and end-of-set messages use a polite live region.
 
 ### Filter and reset controls
 
@@ -48,7 +50,7 @@ The app uses a 4px-derived rhythm, a 280px fixed sidebar on desktop, and a singl
 
 ## 6. Motion & Interaction
 
-Controls use short ease-out transitions for hover and selection. No essential information depends on motion; reduced-motion users receive the same states without animation.
+Controls use a 140ms ease-out color transition for hover and selection, plus a subtle press scale. Question navigation scrolls the card into view with smooth native scrolling. No essential information depends on motion; reduced-motion users receive instant state changes and scrolling.
 
 ## 7. Depth & Surface
 

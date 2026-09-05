@@ -26,6 +26,11 @@ export function nextQuestionIndex(numbers, currentNumber) {
   return position >= 0 && position < numbers.length - 1 ? numbers[position + 1] : null;
 }
 
+export function optionIndexForShortcut(key) {
+  if (/^[1-9]$/.test(key)) return Number(key) - 1;
+  return key === "0" ? 9 : null;
+}
+
 export function shouldKeepSubmittedQuestion(number, currentNumber, setIndex, currentSetIndex, filters, done, excluded = []) {
   return setIndex === currentSetIndex && number === currentNumber && filters.unfinished && !filters.wrong && !filters.favorite && !filters.chopped && !filters.all && done.includes(number) && !excluded.includes(number);
 }

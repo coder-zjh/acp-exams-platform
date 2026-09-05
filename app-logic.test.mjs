@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { completionStats, isCurrentLoad, nextQuestionIndex, optionState, questionSetCount, shouldKeepSubmittedQuestion } from "./app-logic.js";
+import { completionStats, isCurrentLoad, nextQuestionIndex, optionIndexForShortcut, optionState, questionSetCount, shouldKeepSubmittedQuestion } from "./app-logic.js";
 
 test("a correct option in a multi-select answer is green instead of red", () => {
   assert.equal(optionState("A", ["A", "C"], "AC", true, true), "correct");
@@ -35,6 +35,13 @@ test("stale question loads are rejected when a newer load exists", () => {
 test("next question navigation follows the active filtered list", () => {
   assert.equal(nextQuestionIndex([2, 5, 9], 5), 9);
   assert.equal(nextQuestionIndex([2, 5, 9], 9), null);
+});
+
+test("number shortcuts map one through nine and zero to ten options", () => {
+  assert.equal(optionIndexForShortcut("1"), 0);
+  assert.equal(optionIndexForShortcut("9"), 8);
+  assert.equal(optionIndexForShortcut("0"), 9);
+  assert.equal(optionIndexForShortcut("a"), null);
 });
 
 test("the just-submitted question remains visible in the unfinished filter until navigation", () => {
