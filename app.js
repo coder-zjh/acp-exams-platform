@@ -23,6 +23,51 @@ function exportProgress() { window.location.assign("/api/progress/export"); }
 async function importProgress(file) { const raw = await file.text(); let backup; try { backup = JSON.parse(raw); } catch { window.alert("导入失败：请选择有效的进度备份文件。"); return; } if (!window.confirm("导入将覆盖当前 MySQL 中的全部练习进度，且无法撤销。是否继续？")) return; try { progress = await request("/api/progress/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(backup) }); setIndex = sets.findIndex((_, index) => state(index).done.length > 0); if (setIndex < 0) setIndex = 0; qIndex = active().find((number) => !state().done.includes(number)) ?? active()[0] ?? 0; await loadQuestion(); } catch { window.alert("导入失败：文件格式或题库版本不匹配。"); } }
 async function resetProgress(kinds) { const current = state(); if (kinds.includes("all")) { current.done = []; current.wrong = []; current.favorite = []; current.excluded = []; current.results = {}; current.answers = {}; } else { if (kinds.includes("favorite")) current.favorite = []; if (kinds.includes("chopped")) current.excluded = []; if (kinds.includes("wrong")) { const wrong = new Set(current.wrong); current.done = current.done.filter((number) => !wrong.has(number)); current.wrong = []; current.results = Object.fromEntries(Object.entries(current.results).filter(([number]) => !wrong.has(Number(number)))); current.answers = Object.fromEntries(Object.entries(current.answers).filter(([number]) => !wrong.has(Number(number)))); } if (kinds.includes("unfinished")) { const done = new Set(current.done), excluded = new Set(current.excluded); current.answers = Object.fromEntries(Object.entries(current.answers).filter(([number]) => done.has(Number(number)) || excluded.has(Number(number)))); } } await save(); qIndex = active().find((number) => !state().done.includes(number)) ?? active()[0] ?? 0; await loadQuestion(); }
 
+function handleKeyboard(event) {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+  const target = event.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable) return;
+  if (event.key === "Escape") {
+    if (!submitted && selected.length) {
+      selected = [];
+      renderQuestion();
+      event.preventDefault();
+    } else if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+    return;
+  }
+  if (!question) return;
+  if (/^[1-4]$/.test(event.key) && !submitted) {
+    const option = question.options[Number(event.key) - 1];
+    if (!option) return;
+    const multi = question.section === "multi";
+    selected = multi
+      ? selected.includes(option.key)
+        ? selected.filter((key) => key !== option.key)
+        : [...selected, option.key]
+      : [option.key];
+    renderQuestion();
+    event.preventDefault();
+    return;
+  }
+  const action = event.key === "Enter" && !submitted
+    ? $("submit")
+    : event.key === "ArrowLeft"
+      ? $("prev")
+      : event.key === "ArrowRight"
+        ? $("next")
+        : event.key.toLowerCase() === "f"
+          ? $("favoriteCurrent")
+          : event.key.toLowerCase() === "x"
+            ? $("chop")
+            : null;
+  if (!action || action.disabled) return;
+  action.click();
+  event.preventDefault();
+}
+
 async function start() { const [catalog, saved] = await Promise.all([request("/api/quiz/catalog"), request("/api/progress")]); sets = catalog.sets; progress = saved; setIndex = sets.findIndex((_, index) => state(index).done.length > 0); if (setIndex < 0) setIndex = 0; qIndex = active().find((number) => !state().done.includes(number)) ?? active()[0] ?? 0; $("randomBtn").onclick = () => { const list = questionsForMode(); qIndex = list[Math.floor(Math.random() * list.length)] ?? qIndex; loadQuestion(); }; $("exportBtn").onclick = exportProgress; $("importBtn").onclick = () => $("importFile").click(); $("importFile").onchange = async () => { const [file] = $("importFile").files; $("importFile").value = ""; if (file) await importProgress(file); }; loadQuestion(); }
 function renderFilters() { document.querySelectorAll("[data-filter]").forEach((input) => { input.checked = filters[input.dataset.filter]; input.onchange = () => { const kind = input.dataset.filter; if (kind === "all") { filters = { wrong: false, favorite: false, chopped: false, unfinished: false, all: input.checked }; } else { filters[kind] = input.checked; if (input.checked) filters.all = false; if (!filterKinds().length) filters.all = true; } mode = "all"; const list = questionsForMode(), current = state(); qIndex = list.find((number) => !current.done.includes(number) && !current.excluded.includes(number)) ?? list[0] ?? 0; loadQuestion(); }; }); document.querySelectorAll("[data-reset-selected]").forEach((button) => button.onclick = async () => { const kinds = filters.all || !filterKinds().length ? ["all"] : filterKinds(); const labels = { wrong: "错题", favorite: "收藏", chopped: "已斩题", unfinished: "未做题", all: "全部" }; const scope = kinds.map((kind) => labels[kind]).join("、"); if (window.confirm("将重置当前套卷的" + scope + "，此操作不可撤销。是否继续？")) await resetProgress(kinds); }); }
+window.addEventListener("keydown", handleKeyboard);
 start().catch((error) => { $("card").innerHTML = `<div class="empty">${error.message}</div>`; });
