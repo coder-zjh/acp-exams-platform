@@ -29,3 +29,45 @@ SET
   options_json = REPLACE(options_json, '又头', '口头')
 WHERE body LIKE '%又头%'
    OR options_json LIKE '%又头%';
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '又吻', '口吻'),
+  options_json = REPLACE(options_json, '又吻', '口吻')
+WHERE source_key = 'pdf-multi' AND question_no = 205;
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '忌又', '忌口'),
+  options_json = REPLACE(options_json, '忌又', '忌口')
+WHERE source_key = 'pdf-single' AND question_no IN (574, 659);
+
+UPDATE acp_questions
+SET
+  body = REPLACE(REPLACE(body, '一又10', '一口10'), '这又井', '这口井'),
+  options_json = REPLACE(REPLACE(options_json, '一又10', '一口10'), '这又井', '这口井')
+WHERE source_key = 'pdf-single' AND question_no = 585;
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '出又', '出口'),
+  options_json = REPLACE(options_json, '出又', '出口')
+WHERE source_key = 'pdf-single' AND question_no IN (643, 736);
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '又号', '口号'),
+  options_json = REPLACE(options_json, '又号', '口号')
+WHERE source_key = 'pdf-single' AND question_no = 718;
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '又吻', '口吻'),
+  options_json = REPLACE(options_json, '又吻', '口吻')
+WHERE source_key = 'pdf-single' AND question_no = 757;
+
+UPDATE acp_questions
+SET
+  body = REPLACE(body, '人又统计', '人口统计'),
+  options_json = REPLACE(options_json, '人又统计', '人口统计')
+WHERE source_key = 'pdf-single' AND question_no = 762;
