@@ -42,11 +42,11 @@ function handleKeyboard(event) {
     const option = question.options[Number(event.key) - 1];
     if (!option) return;
     const multi = question.section === "multi";
-    selected = multi
-      ? selected.includes(option.key)
-        ? selected.filter((key) => key !== option.key)
-        : [...selected, option.key]
-      : [option.key];
+    selected = selected.includes(option.key)
+      ? selected.filter((key) => key !== option.key)
+      : multi
+        ? [...selected, option.key]
+        : [option.key];
     renderQuestion();
     event.preventDefault();
     return;

@@ -15,6 +15,7 @@ Quiet study workstation: dense progress information sits above a readable questi
 | Border | `--line` | `#e1e7eb` | Panel and control outlines |
 | Accent | `--teal` | `#0e7c78` | Active controls and selection |
 | Accent strong | `--teal-dark` | `#075e5b` | Hover and emphasized text |
+| Sidebar keyline | `--sidebar-keyline` | `#45636a` | Keyboard hint keycaps |
 | Warning | `--amber` | `#e6a23c` | Favorite and missed-answer state |
 | Error | `--red` | `#c85151` | Wrong-answer state |
 
